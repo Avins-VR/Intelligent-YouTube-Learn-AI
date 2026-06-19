@@ -339,18 +339,22 @@ def render_summary_section():
         unsafe_allow_html=True
     )
 
-    with st.container():
+    with st.container(border=True):
         st.markdown(
-            '<div class="va-card style="color:black; white-space: pre-wrap;">',
+            f"""
+            <style>
+            .summary-text {{
+                color: black !important;
+                font-size: 16px;
+                line-height: 1.8;
+            }}
+            </style>
+            """,
             unsafe_allow_html=True
         )
 
         st.markdown(
-            st.session_state.video_summary
-        )
-
-        st.markdown(
-            '</div>',
+            f'<div class="summary-text">{st.session_state.video_summary.replace(chr(10), "<br>")}</div>',
             unsafe_allow_html=True
         )
 def handle_question(question: str) -> None:

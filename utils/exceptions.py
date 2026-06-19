@@ -37,7 +37,7 @@ class VectorStoreError(VideoAssistantError):
 
 
 class LLMGenerationError(VideoAssistantError):
-    """Raised when the Groq LLM API call fails or returns an invalid response."""
+    """Raised when the Gemini LLM API call fails or returns an invalid response."""
     pass
 
 

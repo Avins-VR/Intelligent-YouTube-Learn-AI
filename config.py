@@ -3,24 +3,21 @@ config.py
 
 Centralized configuration for the Video Learning Assistant.
 Loads environment variables and defines global constants used
-across the application (chunking parameters, model names, paths, etc.).
+across the application.
 """
 
 import os
 from dotenv import load_dotenv
 
-# Load variables from .env into the environment
+# Load variables from .env
 load_dotenv()
 
 # ---------------------------------------------------------------------------
 # API Keys
 # ---------------------------------------------------------------------------
-GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
-if not GROQ_API_KEY:
-    # We don't raise here because config.py may be imported before the user
-    # has configured their .env file (e.g., during initial setup). The
-    # actual usage points (rag.py) will raise a clear, user-friendly error.
+if not GEMINI_API_KEY:
     pass
 
 # ---------------------------------------------------------------------------
@@ -37,7 +34,11 @@ CHUNK_OVERLAP: int = 100
 # ---------------------------------------------------------------------------
 # ChromaDB Configuration
 # ---------------------------------------------------------------------------
-CHROMA_PERSIST_DIRECTORY: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chroma_db")
+CHROMA_PERSIST_DIRECTORY: str = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "chroma_db"
+)
+
 CHROMA_COLLECTION_PREFIX: str = "video_"
 
 # ---------------------------------------------------------------------------
@@ -46,10 +47,15 @@ CHROMA_COLLECTION_PREFIX: str = "video_"
 TOP_K_RESULTS: int = 3
 
 # ---------------------------------------------------------------------------
-# LLM Configuration (Groq)
+# Gemini Configuration
 # ---------------------------------------------------------------------------
-GROQ_MODEL_NAME: str = "llama-3.3-70b-versatile"
-GROQ_API_URL: str = "https://api.groq.com/openai/v1/chat/completions"
+GEMINI_MODEL_NAME: str = "gemini-2.5-flash"
+
+GEMINI_API_URL: str = (
+    f"https://generativelanguage.googleapis.com/v1beta/models/"
+    f"{GEMINI_MODEL_NAME}:generateContent"
+)
+
 LLM_TEMPERATURE: float = 0.2
 LLM_MAX_TOKENS: int = 1024
 
@@ -75,6 +81,7 @@ Answer:"""
 # Application Metadata
 # ---------------------------------------------------------------------------
 APP_TITLE: str = "🎓 AI-Powered Educational Video Learning Assistant"
+
 APP_DESCRIPTION: str = (
     "Paste a YouTube video URL, let the AI process its transcript, "
     "and ask questions strictly answered from the video's content."

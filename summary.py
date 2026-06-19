@@ -1,16 +1,16 @@
-# summary.py
-
 """
-Generates a complete timeline-based summary for the entire lecture.
+summary.py
+
+Generates a complete lecture summary using Gemini 2.5 Flash.
 
 Flow:
 1. Load all transcript chunks from ChromaDB.
 2. Merge chunks into one transcript.
-3. Send transcript to Groq.
-4. Generate a structured timeline summary.
+3. Send transcript to Gemini.
+4. Generate a structured study summary.
 """
 
-import requests
+import google.generativeai as genai
 
 import config
 from embeddings import get_all_video_chunks
@@ -28,32 +28,35 @@ def generate_summary(video_id, duration):
         str: Generated summary
     """
 
-    # --------------------------------------------
-    # Load transcript chunks from ChromaDB
-    # --------------------------------------------
+    # --------------------------------------------------
+    # Configure Gemini
+    # --------------------------------------------------
+    genai.configure(api_key=config.GEMINI_API_KEY)
+
+    # --------------------------------------------------
+    # Load transcript chunks
+    # --------------------------------------------------
     chunks = get_all_video_chunks(video_id)
 
     if not chunks:
         return "No transcript data available."
 
-    # --------------------------------------------
-    # Combine all chunks
-    # --------------------------------------------
+    # --------------------------------------------------
+    # Merge transcript
+    # --------------------------------------------------
     full_transcript = "\n\n".join(chunks)
 
-    # --------------------------------------------
+    # --------------------------------------------------
     # Convert duration
-    # --------------------------------------------
+    # --------------------------------------------------
     total_minutes = duration // 60
     total_seconds = duration % 60
 
-    video_duration = (
-        f"{total_minutes:02d}:{total_seconds:02d}"
-    )
+    video_duration = f"{total_minutes:02d}:{total_seconds:02d}"
 
-    # --------------------------------------------
-    # Prompt
-    # --------------------------------------------
+    # --------------------------------------------------
+    # Build Prompt
+    # --------------------------------------------------
     prompt = f"""
 You are an expert educational lecture analyst.
 
@@ -63,7 +66,7 @@ Requirements:
 
 1. Divide the lecture into major topics.
 2. Give a clear title for each topic.
-3. For each topic write a detailed explanation of 15-25 sentences.
+3. For each topic write a detailed explanation of 25-35 sentences.
 4. Explain concepts in simple student-friendly language.
 5. Include examples mentioned in the lecture.
 6. Explain why the concept is important.
@@ -94,45 +97,26 @@ Transcript:
 
 {full_transcript[:20000]}
 """
-    headers = {
-        "Authorization": f"Bearer {config.GROQ_API_KEY}",
-        "Content-Type": "application/json",
-    }
 
-    payload = {
-        "model": config.GROQ_MODEL_NAME,
-        "messages": [
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ],
-        "temperature": 0.1,
-        "max_tokens": 3500,
-    }
-
-    # --------------------------------------------
-    # Call Groq
-    # --------------------------------------------
-    response = requests.post(
-        config.GROQ_API_URL,
-        headers=headers,
-        json=payload,
-        timeout=120,
+    # --------------------------------------------------
+    # Load Gemini Model
+    # --------------------------------------------------
+    model = genai.GenerativeModel(
+        model_name=config.GEMINI_MODEL_NAME
     )
 
-    data = response.json()
+    # --------------------------------------------------
+    # Generate Summary
+    # --------------------------------------------------
+    response = model.generate_content(
+        prompt,
+        generation_config={
+            "temperature": 0.1,
+            "max_output_tokens": 3500,
+        }
+    )
 
-    # --------------------------------------------
-    # Debugging
-    # --------------------------------------------
-    print(data)
-
-    if "choices" not in data:
-        raise Exception(
-            f"Groq Error: {data}"
-        )
-
-    summary = data["choices"][0]["message"]["content"]
-
-    return summary
+    # --------------------------------------------------
+    # Return Summary
+    # --------------------------------------------------
+    return response.text
