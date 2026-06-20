@@ -15,9 +15,9 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # API Keys
 # ---------------------------------------------------------------------------
-GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 
-if not GEMINI_API_KEY:
+if not GROQ_API_KEY:
     pass
 
 # ---------------------------------------------------------------------------
@@ -28,8 +28,8 @@ EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
 # ---------------------------------------------------------------------------
 # Text Chunking Configuration
 # ---------------------------------------------------------------------------
-CHUNK_SIZE: int = 500
-CHUNK_OVERLAP: int = 100
+CHUNK_SIZE = 2000
+CHUNK_OVERLAP = 300
 
 # ---------------------------------------------------------------------------
 # ChromaDB Configuration
@@ -44,16 +44,15 @@ CHROMA_COLLECTION_PREFIX: str = "video_"
 # ---------------------------------------------------------------------------
 # Retrieval Configuration
 # ---------------------------------------------------------------------------
-TOP_K_RESULTS: int = 3
+TOP_K_RESULTS: int = 5
 
 # ---------------------------------------------------------------------------
-# Gemini Configuration
+# Groq Configuration
 # ---------------------------------------------------------------------------
-GEMINI_MODEL_NAME: str = "gemini-2.5-flash"
+GROQ_MODEL_NAME: str = "llama-3.3-70b-versatile"
 
-GEMINI_API_URL: str = (
-    f"https://generativelanguage.googleapis.com/v1beta/models/"
-    f"{GEMINI_MODEL_NAME}:generateContent"
+GROQ_API_URL: str = (
+    "https://api.groq.com/openai/v1/chat/completions"
 )
 
 LLM_TEMPERATURE: float = 0.2
@@ -68,6 +67,27 @@ Answer only from the provided transcript context.
 
 If the answer is not available in the transcript, respond:
 "I could not find this information in the video transcript."
+
+Context:
+{retrieved_chunks}
+
+Question:
+{user_question}
+
+Answer:"""
+
+# ---------------------------------------------------------------------------
+# Doubt Clarification (Chat) Prompt Template
+# ---------------------------------------------------------------------------
+DOUBT_PROMPT_TEMPLATE: str = """You are an educational AI tutor.
+
+Answer only from the provided transcript context.
+
+If information is unavailable in the transcript, reply:
+"I could not find this information in the video."
+
+Be conversational and explain concepts clearly, the way a helpful tutor would.
+Do not invent information that isn't grounded in the transcript context below.
 
 Context:
 {retrieved_chunks}

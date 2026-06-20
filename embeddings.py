@@ -28,12 +28,6 @@ _embedding_model: Optional[SentenceTransformer] = None
 def get_embedding_model() -> SentenceTransformer:
     """
     Lazily load and cache the Sentence Transformer embedding model.
-
-    Returns:
-        The loaded SentenceTransformer instance.
-
-    Raises:
-        EmbeddingGenerationError: If the model fails to load.
     """
     global _embedding_model
     if _embedding_model is None:
@@ -55,12 +49,6 @@ _chroma_client: Optional[chromadb.api.ClientAPI] = None
 def get_chroma_client() -> chromadb.api.ClientAPI:
     """
     Lazily create and cache a persistent ChromaDB client.
-
-    Returns:
-        The ChromaDB PersistentClient instance.
-
-    Raises:
-        VectorStoreError: If the client fails to initialize.
     """
     global _chroma_client
     if _chroma_client is None:
@@ -76,8 +64,6 @@ def get_chroma_client() -> chromadb.api.ClientAPI:
 
 def get_collection_name(video_id: str) -> str:
     """Build a deterministic, valid ChromaDB collection name for a video ID."""
-    # ChromaDB collection names must be alphanumeric (+ underscores/hyphens),
-    # 3-63 characters. Video IDs can contain '-' and '_' which are safe.
     return f"{config.CHROMA_COLLECTION_PREFIX}{video_id}"
 
 
@@ -85,15 +71,6 @@ def chunk_transcript(cleaned_text: str) -> List[str]:
     """
     Split cleaned transcript text into semantic chunks using
     RecursiveCharacterTextSplitter.
-
-    Args:
-        cleaned_text: The cleaned transcript text.
-
-    Returns:
-        A list of text chunks.
-
-    Raises:
-        EmbeddingGenerationError: If chunking produces no usable chunks.
     """
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=config.CHUNK_SIZE,
@@ -114,12 +91,6 @@ def video_already_processed(video_id: str) -> bool:
     """
     Check whether a video's chunks have already been stored in ChromaDB,
     to prevent duplicate insertion.
-
-    Args:
-        video_id: The YouTube video ID.
-
-    Returns:
-        True if a non-empty collection already exists for this video.
     """
     client = get_chroma_client()
     collection_name = get_collection_name(video_id)
@@ -132,8 +103,6 @@ def video_already_processed(video_id: str) -> bool:
         collection = client.get_collection(collection_name)
         return collection.count() > 0
     except Exception:
-        # If anything goes wrong checking existence, default to "not processed"
-        # so the pipeline can attempt (re)creation safely.
         return False
 
 
@@ -142,17 +111,6 @@ def create_and_store_embeddings(video_id: str, chunks: List[str]) -> int:
     Generate embeddings for each chunk and store them in a ChromaDB
     collection dedicated to this video. Skips insertion if the video
     has already been processed.
-
-    Args:
-        video_id: The YouTube video ID (used to scope the collection).
-        chunks: List of transcript text chunks.
-
-    Returns:
-        The number of chunks stored (0 if skipped due to duplicate).
-
-    Raises:
-        EmbeddingGenerationError: If embedding generation fails.
-        VectorStoreError: If storing in ChromaDB fails.
     """
     if video_already_processed(video_id):
         return 0
@@ -160,7 +118,11 @@ def create_and_store_embeddings(video_id: str, chunks: List[str]) -> int:
     model = get_embedding_model()
 
     try:
-        embeddings = model.encode(chunks, show_progress_bar=False).tolist()
+        embeddings = model.encode(
+            chunks,
+            normalize_embeddings=True,
+            show_progress_bar=False
+        ).tolist()
     except Exception as exc:
         raise EmbeddingGenerationError(f"Failed to generate embeddings: {str(exc)}")
 
@@ -168,7 +130,6 @@ def create_and_store_embeddings(video_id: str, chunks: List[str]) -> int:
     collection_name = get_collection_name(video_id)
 
     try:
-        # Ensure a clean slate in case a partial collection exists
         existing_collections = [c.name for c in client.list_collections()]
         if collection_name in existing_collections:
             client.delete_collection(collection_name)
@@ -197,18 +158,6 @@ def query_video_chunks(video_id: str, question: str, top_k: Optional[int] = None
     """
     Convert a user question into an embedding and retrieve the top
     most relevant transcript chunks for a given video.
-
-    Args:
-        video_id: The YouTube video ID whose collection should be queried.
-        question: The user's natural-language question.
-        top_k: Number of top results to retrieve (defaults to config.TOP_K_RESULTS).
-
-    Returns:
-        A list of the most relevant chunk texts, ordered by relevance.
-
-    Raises:
-        EmbeddingGenerationError: If embedding the question fails.
-        VectorStoreError: If querying ChromaDB fails.
     """
     if top_k is None:
         top_k = config.TOP_K_RESULTS
@@ -216,7 +165,11 @@ def query_video_chunks(video_id: str, question: str, top_k: Optional[int] = None
     model = get_embedding_model()
 
     try:
-        question_embedding = model.encode([question], show_progress_bar=False).tolist()
+        question_embedding = model.encode(
+            [question],
+            normalize_embeddings=True,
+            show_progress_bar=False
+        ).tolist()
     except Exception as exc:
         raise EmbeddingGenerationError(f"Failed to generate embedding for question: {str(exc)}")
 
@@ -235,16 +188,30 @@ def query_video_chunks(video_id: str, question: str, top_k: Optional[int] = None
     documents = results.get("documents", [[]])
     return documents[0] if documents else []
 
-def get_all_video_chunks(video_id):
+
+def get_all_video_chunks(video_id: str) -> List[str]:
 
     client = get_chroma_client()
 
-    collection_name = get_collection_name(video_id)
-
     collection = client.get_collection(
-        collection_name
+        get_collection_name(video_id)
     )
 
-    data = collection.get()
+    data = collection.get(
+        include=["documents", "metadatas"]
+    )
 
-    return data.get("documents", [])
+    documents = data["documents"]
+    metadatas = data["metadatas"]
+
+    sorted_docs = [
+        doc
+        for _, doc in sorted(
+            zip(
+                [m["chunk_index"] for m in metadatas],
+                documents
+            )
+        )
+    ]
+
+    return sorted_docs
