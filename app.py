@@ -2,10 +2,18 @@
 app.py
 
 Main Streamlit entry point for the AI-Powered Educational Video Learning
-Assistant. This page handles YouTube video ingestion (transcript fetch,
-cleaning, chunking, embedding, ChromaDB storage, and summary generation)
-and shows the main processing dashboard. Use the sidebar to navigate to
-the Summary, Key Notes, and Doubt Clarification pages.
+Assistant.
+
+This file now does two jobs:
+1. Defines the "Learn" stage (YouTube ingestion pipeline + summary —
+   kept together on one page, exactly as before) directly in this file.
+2. Acts as the app's router: it registers all five stages with
+   st.navigation(position="hidden") so Streamlit's default sidebar
+   navigation is suppressed, and renders the custom top "Stage Rail"
+   navbar (ui_theme.render_top_navbar) above whichever stage is active.
+
+None of the existing ingestion/summary/notes business logic below has
+been changed — only how it's triggered and displayed.
 """
 
 import streamlit as st
@@ -21,7 +29,7 @@ from embeddings import (
 from summary import generate_summary
 from notes import generate_key_notes
 from session_utils import initialize_session_state
-from ui_theme import inject_global_css, render_header, render_section_label
+from ui_theme import inject_global_css, render_top_navbar, render_section_label, render_stat_grid
 from utils.exceptions import (
     InvalidYouTubeURLError,
     TranscriptNotFoundError,
@@ -33,18 +41,18 @@ from utils.exceptions import (
 
 
 # ---------------------------------------------------------------------------
-# Page Configuration
+# Page Configuration (must be called exactly once, here, before anything else)
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Video Learning Assistant",
+    page_title="Lumen.Learn — Video Learning Assistant",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
 # ---------------------------------------------------------------------------
-# Core Processing Logic
+# Core Processing Logic (UNCHANGED business logic)
 # ---------------------------------------------------------------------------
 def process_video(youtube_url: str) -> None:
     """
@@ -87,6 +95,7 @@ def process_video(youtube_url: str) -> None:
             else:
                 st.write("Generating AI summary...")
                 duration = result.get("duration", 0)
+                st.session_state.video_duration = duration
                 summary = generate_summary(video_id, duration)
 
             if same_video_as_before and st.session_state.notes:
@@ -98,6 +107,7 @@ def process_video(youtube_url: str) -> None:
             # Update session state
             st.session_state.current_video_id = video_id
             st.session_state.video_url = youtube_url
+            st.session_state.video_duration = duration
             st.session_state.transcript = cleaned_transcript
             st.session_state.num_chunks = num_chunks
             st.session_state.transcript_length = len(cleaned_transcript)
@@ -107,11 +117,17 @@ def process_video(youtube_url: str) -> None:
             st.session_state.notes = key_notes
 
             if not same_video_as_before:
-                # Fresh video: clear out any leftover chat from a previous video.
+                # Fresh video: clear out any leftover state from a previous video.
                 st.session_state.chat_history = []
                 st.session_state.last_answer = None
                 st.session_state.last_question = None
                 st.session_state.last_retrieved_chunks = []
+                st.session_state.mcqs = []
+                st.session_state.mcqs_generated = False
+                st.session_state.mcq_user_answers = {}
+                st.session_state.mcq_submitted = False
+                st.session_state.recommendations = []
+                st.session_state.recommendations_generated = False
 
             status.update(label="Video processed successfully!", state="complete", expanded=False)
 
@@ -146,7 +162,7 @@ def process_video(youtube_url: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# UI Sections
+# Learn Page UI (video processing + summary, kept together on one page)
 # ---------------------------------------------------------------------------
 def render_video_input_section() -> None:
     """Render the YouTube URL input and processing trigger."""
@@ -170,17 +186,18 @@ def render_video_input_section() -> None:
             process_video(youtube_url.strip())
 
 
-def render_dashboard_cards() -> None:
-    """Render the main dashboard stat cards once a video has been processed."""
+def render_transcript_stats() -> None:
+    """Render transcript/processing stats once a video has been processed."""
     if not st.session_state.video_processed:
         st.markdown(
             """
             <div class="ed-card">
-                <p style="margin:0; color: var(--muted);">
+                <p style="margin:0; color: var(--text-dim);">
                     Paste a YouTube lecture or talk URL above and click
-                    <strong>Process Video</strong> to get started. Once processed,
-                    you'll be able to view an AI summary, key notes, and chat with
-                    the video using the sidebar.
+                    <strong style="color:var(--text);">Process Video</strong> to get started.
+                    Once processed, a summary appears below, and you can move through
+                    Key Notes, Doubt Clarification, MCQ Assessment, and Learning Path
+                    using the rail above.
                 </p>
             </div>
             """,
@@ -188,63 +205,95 @@ def render_dashboard_cards() -> None:
         )
         return
 
-    render_section_label("Dashboard")
+    render_section_label("Transcript Overview")
 
     db_status = "Connected" if st.session_state.collection_name else "Not Connected"
 
-    st.markdown(
-        f"""
-        <div class="ed-stat-grid">
-            <div class="ed-stat-tile">
-                <span class="ed-stat-icon">📝</span>
-                <span class="ed-stat-value">{st.session_state.transcript_length:,}</span>
-                <span class="ed-stat-label">Transcript Length</span>
-            </div>
-            <div class="ed-stat-tile">
-                <span class="ed-stat-icon">🧩</span>
-                <span class="ed-stat-value">{st.session_state.num_chunks}</span>
-                <span class="ed-stat-label">Chunks Created</span>
-            </div>
-            <div class="ed-stat-tile">
-                <span class="ed-stat-icon">✅</span>
-                <span class="ed-stat-value">Yes</span>
-                <span class="ed-stat-label">Video Processed</span>
-            </div>
-            <div class="ed-stat-tile">
-                <span class="ed-stat-icon">🗄️</span>
-                <span class="ed-stat-value" style="font-size:1.05rem;">{db_status}</span>
-                <span class="ed-stat-label">Database Status</span>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    render_stat_grid(
+        [
+            {"icon": "📝", "value": f"{st.session_state.transcript_length:,}", "label": "Transcript Length"},
+            {"icon": "🧩", "value": str(st.session_state.num_chunks), "label": "Chunks Created"},
+            {"icon": "✅", "value": "Yes", "label": "Video Processed"},
+            {"icon": "🗄️", "value": db_status, "label": "Database Status"},
+        ]
     )
 
-    st.success("✅ Ready — use the sidebar to view the Summary, Key Notes, or ask a question.")
+
+def render_summary_section() -> None:
+    """Render the generated summary directly below the processing results."""
+    if not st.session_state.video_processed or not st.session_state.summary:
+        return
+
+    render_section_label("Summary")
+
+    st.markdown(
+        '<div class="ed-card">',
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        st.session_state.summary
+    )
+
+    st.markdown(
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+def render_learn_page() -> None:
+    """Full content of the 'Learn' stage: processing + summary together."""
+    render_video_input_section()
+    render_transcript_stats()
+    render_summary_section()
 
 
 # ---------------------------------------------------------------------------
-# Main Entry Point
+# Router: register all five stages and render the shared top navbar
 # ---------------------------------------------------------------------------
 def main() -> None:
-    """Application entry point."""
     inject_global_css()
     initialize_session_state()
 
-    render_header(
-        "AI-Powered Educational Video Learning Assistant",
-        "Learn Faster from Educational Videos",
+    learn_page = st.Page(
+        render_learn_page, title="Learn", icon=":material/play_circle:",
+        default=True, url_path="learn",
+    )
+    notes_page = st.Page(
+        "pages/notes_page.py", title="Key Notes", icon=":material/sticky_note_2:",
+        url_path="notes",
+    )
+    doubt_page = st.Page(
+        "pages/chat_page.py", title="Doubt Clarification", icon=":material/forum:",
+        url_path="doubt",
+    )
+    mcq_page = st.Page(
+        "pages/mcq_page.py", title="MCQ Assessment", icon=":material/quiz:",
+        url_path="mcq",
+    )
+    path_page = st.Page(
+        "pages/recommendations_page.py", title="Learning Path", icon=":material/route:",
+        url_path="path",
     )
 
-    with st.sidebar:
-        st.markdown("### 🎓 Navigation")
-        st.page_link("app.py", label="Process Video", icon="🏠")
-        st.page_link("pages/summary_page.py", label="Summary", icon="📄")
-        st.page_link("pages/notes_page.py", label="Key Notes", icon="🗒️")
-        st.page_link("pages/chat_page.py", label="Doubt Clarification", icon="💬")
+    nav_pages = {
+        "learn": learn_page,
+        "notes": notes_page,
+        "doubt": doubt_page,
+        "mcq": mcq_page,
+        "path": path_page,
+    }
 
-    render_video_input_section()
-    render_dashboard_cards()
+    try:
+        pg = st.navigation(list(nav_pages.values()), position="hidden")
+    except TypeError:
+        # Older Streamlit versions without the `position` kwarg: the global
+        # CSS in ui_theme.py force-hides the sidebar nav as a fallback.
+        pg = st.navigation(list(nav_pages.values()))
+
+    active_key = next((k for k, p in nav_pages.items() if p == pg), "learn")
+    render_top_navbar(active_key, nav_pages)
+
+    pg.run()
 
 
 if __name__ == "__main__":

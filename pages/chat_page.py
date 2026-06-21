@@ -1,5 +1,7 @@
 """
 pages/chat_page.py
+
+Doubt Clarification Page
 """
 
 import re
@@ -10,7 +12,7 @@ from rag import answer_doubt
 from session_utils import initialize_session_state
 from ui_theme import (
     inject_global_css,
-    render_header,
+    render_top_navbar,
     render_section_label,
     render_no_video_notice
 )
@@ -21,28 +23,15 @@ from utils.exceptions import (
     LLMGenerationError,
 )
 
-
 st.set_page_config(
-    page_title="Doubt Clarification · Video Learning Assistant",
+    page_title="Doubt Clarification",
     page_icon="💬",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 
-def render_sidebar_nav() -> None:
-    with st.sidebar:
-        st.markdown("### 🎓 Navigation")
-        st.page_link("app.py", label="Process Video", icon="🏠")
-        st.page_link("pages/summary_page.py", label="Summary", icon="📄")
-        st.page_link("pages/notes_page.py", label="Key Notes", icon="🗒️")
-        st.page_link("pages/chat_page.py", label="Doubt Clarification", icon="💬")
-
-
 def clean_answer(answer: str) -> str:
-    """
-    Remove accidental HTML tags from model responses.
-    """
 
     if not answer:
         return ""
@@ -65,7 +54,7 @@ def handle_user_question(question: str) -> None:
         ):
             retrieved_chunks = query_video_chunks(
                 video_id=st.session_state.current_video_id,
-                question=question,
+                question=question
             )
 
         with st.spinner("Thinking..."):
@@ -75,9 +64,7 @@ def handle_user_question(question: str) -> None:
                 question
             )
 
-            answer = clean_answer(
-                answer
-            )
+            answer = clean_answer(answer)
 
         st.session_state.chat_history.append(
             {
@@ -92,6 +79,10 @@ def handle_user_question(question: str) -> None:
                 "content": answer
             }
         )
+
+        st.session_state.last_question = question
+        st.session_state.last_answer = answer
+        st.session_state.last_retrieved_chunks = retrieved_chunks
 
     except EmptyQuestionError as exc:
         st.warning(f"⚠️ {str(exc)}")
@@ -119,9 +110,7 @@ def render_chat_history() -> None:
             """
             <div class="ed-card">
                 <p style="margin:0;">
-                    Ask anything about the video —
-                    definitions, clarifications,
-                    or explain a concept again.
+                    No questions yet — ask your first one below.
                 </p>
             </div>
             """,
@@ -130,125 +119,119 @@ def render_chat_history() -> None:
 
         return
 
-    bubbles_html = '<div class="ed-chat-scroll">'
+    st.markdown(
+        '<div class="ed-chat-scroll">',
+        unsafe_allow_html=True
+    )
+
+    current_user = None
 
     for message in st.session_state.chat_history:
 
-        role = message["role"]
+        if message["role"] == "user":
 
-        content = (
-            message["content"]
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace("\n", "<br>")
-        )
+            current_user = message["content"]
 
-        label = (
-            "You"
-            if role == "user"
-            else "Tutor"
-        )
+        elif message["role"] == "assistant":
 
-        bubbles_html += f"""
-        <div class="ed-bubble-row {role}">
-            <div class="ed-bubble {role}">
-                <span class="ed-bubble-label">
-                    {label}
-                </span>
-                {content}
-            </div>
-        </div>
-        """
+            answer = message["content"]
 
-    bubbles_html += "</div>"
+            st.markdown(
+                f"""
+                <div class="ed-bubble-row user">
+                    <div class="ed-bubble user">
+                        <span class="ed-bubble-label">
+                            You
+                        </span>
+                        {current_user}
+                    </div>
+                </div>
+
+                <div class="ed-bubble-row assistant">
+                    <div class="ed-bubble assistant">
+                        <span class="ed-bubble-label">
+                            Tutor
+                        </span>
+                        {answer}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     st.markdown(
-        bubbles_html,
+        "</div>",
         unsafe_allow_html=True
     )
 
 
-def render_chat_input() -> None:
-
-    col1, col2 = st.columns(
-        [4, 1],
-        vertical_alignment="bottom"
-    )
-
-    with col1:
-
-        question = st.text_input(
-            "Ask a question about the video",
-            placeholder=(
-                "e.g. Can you explain "
-                "that last concept again?"
-            ),
-            label_visibility="collapsed",
-            key="chat_question_input",
-        )
-
-    with col2:
-
-        ask_clicked = st.button(
-            "Send",
-            use_container_width=True
-        )
-
-    if ask_clicked:
-
-        if not question.strip():
-
-            st.warning(
-                "⚠️ Please enter a question before sending."
-            )
-
-        else:
-
-            handle_user_question(
-                question.strip()
-            )
-
-            st.rerun()
-
-
-def main() -> None:
+def main():
 
     inject_global_css()
 
     initialize_session_state()
 
-    render_sidebar_nav()
-
-    render_header(
-        "Doubt Clarification",
-        "Chat with the video. Answers are grounded in its transcript."
-    )
 
     if (
         not st.session_state.video_processed
         or not st.session_state.current_video_id
     ):
-
         render_no_video_notice(
             "Doubt Clarification"
         )
-
         return
 
     if st.button("🗑️ Clear Chat"):
 
         st.session_state.chat_history = []
-
         st.rerun()
 
     render_section_label(
-        f"Chat · {len(st.session_state.chat_history) // 2} question(s) asked"
+        f"Chat · {len(st.session_state.chat_history)//2} question(s) asked"
     )
 
     render_chat_history()
 
-    render_chat_input()
+    with st.form(
+        key="doubt_chat_form",
+        clear_on_submit=True
+    ):
+
+        col1, col2 = st.columns(
+            [5, 1],
+            vertical_alignment="bottom"
+        )
+
+        with col1:
+
+            user_question = st.text_input(
+                "Ask a question",
+                placeholder="e.g. Can you explain that last concept again?",
+                label_visibility="collapsed"
+            )
+
+        with col2:
+
+            submitted = st.form_submit_button(
+                "Send",
+                use_container_width=True
+            )
+
+    if submitted:
+
+        if not user_question.strip():
+
+            st.warning(
+                "⚠️ Please enter a question before submitting."
+            )
+
+        else:
+
+            handle_user_question(
+                user_question.strip()
+            )
+
+            st.rerun()
 
 
 if __name__ == "__main__":

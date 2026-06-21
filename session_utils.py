@@ -14,6 +14,7 @@ def initialize_session_state() -> None:
         "current_video_id": None,
         "video_url": None,
         "transcript": None,
+        "video_duration": 0,
         "num_chunks": 0,
         "transcript_length": 0,
         "video_processed": False,
@@ -30,6 +31,17 @@ def initialize_session_state() -> None:
         "last_answer": None,
         "last_question": None,
         "last_retrieved_chunks": [],
+
+        # Phase 3: MCQ Assessment
+        "mcqs": [],
+        "mcqs_generated": False,
+        "mcq_quiz_mode": False,
+        "mcq_user_answers": {},
+        "mcq_submitted": False,
+
+        # Phase 3: Learning Path recommendations
+        "recommendations": [],
+        "recommendations_generated": False,
 
         # Optional debugging
         "last_summary_chunks": [],
