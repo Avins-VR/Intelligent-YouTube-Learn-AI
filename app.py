@@ -7,13 +7,14 @@ Assistant.
 This file now does two jobs:
 1. Defines the "Learn" stage (YouTube ingestion pipeline + summary —
    kept together on one page, exactly as before) directly in this file.
-2. Acts as the app's router: it registers all five stages with
+2. Acts as the app's router: it registers all six stages with
    st.navigation(position="hidden") so Streamlit's default sidebar
    navigation is suppressed, and renders the custom top "Stage Rail"
    navbar (ui_theme.render_top_navbar) above whichever stage is active.
 
 None of the existing ingestion/summary/notes business logic below has
-been changed — only how it's triggered and displayed.
+been changed — only how it's triggered and displayed, plus the addition
+of the new Concept Map stage (Phase 4) to the router.
 """
 
 import streamlit as st
@@ -128,6 +129,8 @@ def process_video(youtube_url: str) -> None:
                 st.session_state.mcq_submitted = False
                 st.session_state.recommendations = []
                 st.session_state.recommendations_generated = False
+                st.session_state.concept_map = None
+                st.session_state.concept_map_generated = False
 
             status.update(label="Video processed successfully!", state="complete", expanded=False)
 
@@ -196,8 +199,8 @@ def render_transcript_stats() -> None:
                     Paste a YouTube lecture or talk URL above and click
                     <strong style="color:var(--text);">Process Video</strong> to get started.
                     Once processed, a summary appears below, and you can move through
-                    Key Notes, Doubt Clarification, MCQ Assessment, and Learning Path
-                    using the rail above.
+                    Key Notes, Doubt Clarification, MCQ Assessment, Learning Path, and
+                    Concept Map using the rail above.
                 </p>
             </div>
             """,
@@ -248,7 +251,7 @@ def render_learn_page() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Router: register all five stages and render the shared top navbar
+# Router: register all six stages and render the shared top navbar
 # ---------------------------------------------------------------------------
 def main() -> None:
     inject_global_css()
@@ -274,6 +277,10 @@ def main() -> None:
         "pages/recommendations_page.py", title="Learning Path", icon=":material/route:",
         url_path="path",
     )
+    concept_map_page = st.Page(
+        "pages/concept_map_page.py", title="Concept Map", icon=":material/account_tree:",
+        url_path="concept_map",
+    )
 
     nav_pages = {
         "learn": learn_page,
@@ -281,6 +288,7 @@ def main() -> None:
         "doubt": doubt_page,
         "mcq": mcq_page,
         "path": path_page,
+        "concept_map": concept_map_page,
     }
 
     try:

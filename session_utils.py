@@ -43,6 +43,10 @@ def initialize_session_state() -> None:
         "recommendations": [],
         "recommendations_generated": False,
 
+        # Phase 4: Concept Map
+        "concept_map": None,
+        "concept_map_generated": False,
+
         # Optional debugging
         "last_summary_chunks": [],
         "last_notes_chunks": [],

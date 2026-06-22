@@ -19,7 +19,7 @@ from ui_theme import render_section_label, render_no_video_notice, render_stat_g
 from utils.exceptions import LLMGenerationError
 
 
-def render_mermaid(mermaid_code: str, height: int = 620) -> None:
+def render_mermaid(mermaid_code: str, height: int = 1900) -> None:
     """Render Mermaid flowchart syntax as an interactive, scrollable
     diagram styled to match the app's dark theme."""
     html = f"""
@@ -48,7 +48,9 @@ def render_mermaid(mermaid_code: str, height: int = 620) -> None:
         flowchart: {{
           useMaxWidth: true,
           htmlLabels: false,
-          curve: 'basis'
+          curve: 'basis',
+          nodeSpacing: 90,
+          rankSpacing: 150
         }}
       }});
     </script>

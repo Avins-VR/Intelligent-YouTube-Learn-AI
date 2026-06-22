@@ -45,14 +45,15 @@ FONT_IMPORT = (
 # The five learning stages, in order. Numbered markers are justified here
 # because the content genuinely is a sequence a student progresses through.
 # ---------------------------------------------------------------------------
+
 STAGES: List[Dict[str, str]] = [
     {"key": "learn", "num": "01", "label": "Learn", "icon": ":material/play_circle:"},
     {"key": "notes", "num": "02", "label": "Key Notes", "icon": ":material/sticky_note_2:"},
     {"key": "doubt", "num": "03", "label": "Doubt Clarification", "icon": ":material/forum:"},
     {"key": "mcq", "num": "04", "label": "MCQ Assessment", "icon": ":material/quiz:"},
     {"key": "path", "num": "05", "label": "Learning Path", "icon": ":material/route:"},
+    {"key": "concept_map", "num": "06", "label": "Concept Map", "icon": ":material/account_tree:"},
 ]
-
 
 def inject_global_css() -> None:
     """Inject the shared dark design system CSS. Safe to call once per run."""
