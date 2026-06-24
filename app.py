@@ -27,6 +27,10 @@ from embeddings import (
     video_already_processed,
     get_collection_name,
 )
+
+from io import BytesIO
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 from summary import generate_summary
 from notes import generate_key_notes
 from session_utils import initialize_session_state
@@ -222,21 +226,60 @@ def render_transcript_stats() -> None:
     )
 
 
+def create_summary_pdf(summary_text):
+
+    buffer = BytesIO()
+
+    doc = SimpleDocTemplate(buffer)
+
+    styles = getSampleStyleSheet()
+
+    content = [
+        Paragraph("Video Summary", styles["Title"]),
+        Spacer(1, 12),
+        Paragraph(
+            summary_text.replace("\n", "<br/>"),
+            styles["BodyText"]
+        )
+    ]
+
+    doc.build(content)
+
+    buffer.seek(0)
+
+    return buffer
+
+
 def render_summary_section() -> None:
-    """Render the generated summary directly below the processing results."""
+
     if not st.session_state.video_processed or not st.session_state.summary:
         return
 
     render_section_label("Summary")
+
+    summary = st.session_state.summary
+
+    col1, col2 = st.columns([20, 1])
+
+    with col2:
+
+        pdf_file = create_summary_pdf(summary)
+
+        st.download_button(
+            label="📥",
+            data=pdf_file,
+            file_name="video_summary.pdf",
+            mime="application/pdf",
+            help="Download Summary PDF",
+            key="summary_download"
+        )
 
     st.markdown(
         '<div class="ed-card">',
         unsafe_allow_html=True
     )
 
-    st.markdown(
-        st.session_state.summary
-    )
+    st.markdown(summary)
 
     st.markdown(
         '</div>',

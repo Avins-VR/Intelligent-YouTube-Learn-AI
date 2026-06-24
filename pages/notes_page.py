@@ -19,15 +19,56 @@ from notes import generate_key_notes
 from session_utils import initialize_session_state
 from ui_theme import render_section_label, render_no_video_notice
 from utils.exceptions import LLMGenerationError
+from io import BytesIO
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 
 initialize_session_state()
+
+def create_notes_pdf(notes):
+
+    buffer = BytesIO()
+
+    doc = SimpleDocTemplate(buffer)
+
+    styles = getSampleStyleSheet()
+
+    content = [
+        Paragraph(
+            "Key Notes",
+            styles["Title"]
+        ),
+        Spacer(1, 12)
+    ]
+
+    for note in notes:
+
+        content.append(
+            Paragraph(
+                f"• {note}",
+                styles["BodyText"]
+            )
+        )
+
+        content.append(
+            Spacer(1, 6)
+        )
+
+    doc.build(content)
+
+    buffer.seek(0)
+
+    return buffer
 
 render_section_label("Key Notes")
 
 if not st.session_state.video_processed:
     render_no_video_notice("Key Notes")
 else:
-    col1, col2 = st.columns([5, 1], vertical_alignment="center")
+    col1, col2, col3 = st.columns(
+        [5, 1, 0.6],
+        vertical_alignment="center"
+    )
     with col1:
         st.markdown(
             '<p style="color: var(--text-dim); margin-top:0;">'
@@ -37,6 +78,23 @@ else:
         )
     with col2:
         regenerate_clicked = st.button("Regenerate", use_container_width=True)
+    with col3:
+
+        if st.session_state.notes:
+
+            pdf_file = create_notes_pdf(
+                st.session_state.notes
+            )
+
+            st.download_button(
+                label="📥",
+                data=pdf_file,
+                file_name="key_notes.pdf",
+                mime="application/pdf",
+                help="Download Notes PDF",
+                use_container_width=True,
+                key="notes_download"
+            )
 
     if regenerate_clicked:
         with st.spinner("Regenerating key notes..."):

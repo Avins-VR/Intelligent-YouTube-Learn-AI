@@ -58,24 +58,33 @@ You are an expert educational assessment designer.
 Generate exactly {mcq_count} high-quality multiple-choice questions (MCQs)
 using ONLY the retrieved transcript context below.
 
+Difficulty Distribution:
+
+- Easy Questions: {easy_count}
+- Medium Questions: {medium_count}
+- Hard Questions: {hard_count}
+
 Rules:
 
 1. Generate exactly {mcq_count} questions.
-2. Test conceptual understanding.
-3. Avoid trivial recall questions.
-4. Use only information found in the context.
-5. Do not invent information.
-6. Each question must have exactly 4 options:
+2. Easy questions should test basic understanding.
+3. Medium questions should test conceptual understanding.
+4. Hard questions should test deeper reasoning and application.
+5. Use only information found in the context.
+6. Do not invent information.
+7. Each question must have exactly 4 options:
    A, B, C, D.
-7. Exactly one option must be correct.
-8. Avoid duplicate questions.
-9. Include a short explanation.
-10. Return ONLY valid JSON.
+8. Exactly one option must be correct.
+9. Avoid duplicate questions.
+10. Include a short explanation.
+11. Add a difficulty field.
+12. Return ONLY valid JSON.
 
 Output Format:
 
 [
   {{
+    "difficulty": "Easy",
     "question": "string",
     "options": {{
       "A": "string",
@@ -114,7 +123,7 @@ def retrieve_mcq_context(video_id: str) -> str:
             chunks = query_video_chunks(
                 video_id=video_id,
                 question=query,
-                top_k=5
+                top_k=2
             )
 
             for chunk in chunks:
@@ -169,6 +178,7 @@ def validate_mcq(item: Dict) -> bool:
         return False
 
     required = {
+        "difficulty",
         "question",
         "options",
         "correct_answer",
@@ -193,7 +203,14 @@ def validate_mcq(item: Dict) -> bool:
         "D"
     }:
         return False
-
+    
+    if item.get("difficulty") not in {
+        "Easy",
+        "Medium",
+        "Hard"
+    }:
+        return False
+    
     return True
 
 
@@ -244,6 +261,15 @@ def get_mcq_count(duration_seconds: int):
     else:
         return 40
     
+def get_difficulty_distribution(mcq_count):
+
+    easy = int(mcq_count * 0.4)
+    medium = int(mcq_count * 0.4)
+
+    hard = mcq_count - easy - medium
+
+    return easy, medium, hard
+
 # --------------------------------------------------
 # LLM Generation
 # --------------------------------------------------
@@ -257,6 +283,10 @@ def generate_mcqs(video_id: str,duration: int) -> List[Dict]:
         duration
     )
 
+    easy_count, medium_count, hard_count = (
+        get_difficulty_distribution(mcq_count)
+    )
+    
     if not config.GROQ_API_KEY:
 
         raise LLMGenerationError(
@@ -273,7 +303,10 @@ def generate_mcqs(video_id: str,duration: int) -> List[Dict]:
 
     prompt = MCQ_PROMPT.format(
         context=context,
-        mcq_count=mcq_count
+        mcq_count=mcq_count,
+        easy_count=easy_count,
+        medium_count=medium_count,
+        hard_count=hard_count
     )
 
     try:
@@ -297,7 +330,6 @@ def generate_mcqs(video_id: str,duration: int) -> List[Dict]:
             .content
             .strip()
         )
-
     except Exception as exc:
 
         raise LLMGenerationError(
