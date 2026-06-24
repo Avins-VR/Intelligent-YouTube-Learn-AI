@@ -15,13 +15,13 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from concept_map import generate_concept_map
-from ui_theme import render_section_label, render_no_video_notice, render_stat_grid
+from ui_theme import render_section_label, render_no_video_notice, render_stat_grid, render_icon
 from utils.exceptions import LLMGenerationError
 
 
 def render_mermaid(mermaid_code: str, height: int = 1900) -> None:
     """Render Mermaid flowchart syntax as an interactive, scrollable
-    diagram styled to match the app's dark theme."""
+    diagram styled to match the app's dark glass theme."""
     html = f"""
     <div id="concept-map-wrapper">
       <div class="mermaid">
@@ -35,13 +35,13 @@ def render_mermaid(mermaid_code: str, height: int = 1900) -> None:
         securityLevel: 'strict',
         theme: 'base',
         themeVariables: {{
-          background: '#181c27',
-          primaryColor: '#1f2433',
-          primaryTextColor: '#e9e7df',
-          primaryBorderColor: '#7c6cf0',
-          lineColor: '#ff8a4c',
-          secondaryColor: '#181c27',
-          tertiaryColor: '#11141c',
+          background: 'rgba(255,255,255,0.04)',
+          primaryColor: 'rgba(255,255,255,0.07)',
+          primaryTextColor: '#eef0f6',
+          primaryBorderColor: '#6e6bff',
+          lineColor: '#4fd1ff',
+          secondaryColor: 'rgba(255,255,255,0.04)',
+          tertiaryColor: '#0a0c12',
           fontFamily: 'Inter, sans-serif',
           fontSize: '14px'
         }},
@@ -63,11 +63,12 @@ def render_mermaid(mermaid_code: str, height: int = 1900) -> None:
       #concept-map-wrapper {{
         width: 100%;
         overflow: auto;
-        background: #181c27;
-        border: 1px solid #2b3142;
-        border-radius: 14px;
-        padding: 1.3rem;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.09);
+        border-radius: 16px;
+        padding: 1.4rem;
         box-sizing: border-box;
+        backdrop-filter: blur(8px);
       }}
       .mermaid {{
         display: flex;
@@ -87,17 +88,20 @@ def render_concept_map_page() -> None:
         render_no_video_notice("Concept Map")
         return
 
-    render_section_label("Concept Map")
+    render_section_label("Concept Map", icon="account_tree")
 
     col1, col2 = st.columns([4, 1], vertical_alignment="bottom")
     with col1:
         st.markdown(
-            """
+            f"""
             <div class="ed-card" style="padding:1rem 1.3rem;">
-                <p style="margin:0; color: var(--text-dim);">
-                    Generate a hierarchical knowledge map of this video -
-                    main topic, major concepts, and sub concepts - built
-                    from its summary and key notes.
+                <p style="margin:0; color: var(--text-dim); display:flex; align-items:flex-start; gap:0.6rem;">
+                    {render_icon("info", "20px")}
+                    <span>
+                        Generate a hierarchical knowledge map of this video -
+                        main topic, major concepts, and sub concepts - built
+                        from its summary and key notes.
+                    </span>
                 </p>
             </div>
             """,
@@ -105,7 +109,9 @@ def render_concept_map_page() -> None:
         )
     with col2:
         button_label = "Regenerate" if st.session_state.concept_map_generated else "Generate Map"
-        generate_clicked = st.button(button_label, use_container_width=True)
+        generate_clicked = st.button(
+            button_label, use_container_width=True, icon=":material/auto_awesome:"
+        )
 
     if generate_clicked:
         with st.spinner("Building concept map..."):
@@ -117,22 +123,24 @@ def render_concept_map_page() -> None:
                 )
                 if result is None:
                     st.warning(
-                        "⚠️ Not enough processed content yet to build a concept map. "
-                        "Process a video on the Learn stage first."
+                        "Not enough processed content yet to build a concept map. "
+                        "Process a video on the Learn stage first.",
+                        icon=":material/warning:",
                     )
                 else:
                     st.session_state.concept_map = result
                     st.session_state.concept_map_generated = True
             except LLMGenerationError as exc:
-                st.error(f"⚠️ {str(exc)}")
+                st.error(str(exc), icon=":material/error:")
             except Exception as exc:  # noqa: BLE001
-                st.error(f"⚠️ An unexpected error occurred: {str(exc)}")
+                st.error(f"An unexpected error occurred: {str(exc)}", icon=":material/error:")
 
     if not st.session_state.concept_map_generated or not st.session_state.concept_map:
         st.markdown(
-            """
+            f"""
             <div class="ed-card">
-                <p style="margin:0; color: var(--text-dim);">
+                <p style="margin:0; color: var(--text-dim); display:flex; align-items:center; gap:0.6rem;">
+                    {render_icon("info", "20px")}
                     No concept map generated yet. Click
                     <strong style="color:var(--text);">Generate Map</strong> above to build one.
                 </p>
@@ -145,19 +153,19 @@ def render_concept_map_page() -> None:
     concept_map = st.session_state.concept_map
     stats = concept_map["stats"]
 
-    render_section_label("Concept Statistics")
+    render_section_label("Concept Statistics", icon="bar_chart")
     render_stat_grid(
         [
-            {"icon": "🎯", "value": "1", "label": "Main Topic"},
-            {"icon": "🧠", "value": str(stats["major_concept_count"]), "label": "Major Concepts"},
-            {"icon": "🔗", "value": str(stats["subtopic_count"]), "label": "Subtopics"},
-            {"icon": "📊", "value": str(stats["total_concepts"]), "label": "Total Concepts"},
+            {"icon": "flag", "value": "1", "label": "Main Topic"},
+            {"icon": "psychology", "value": str(stats["major_concept_count"]), "label": "Major Concepts"},
+            {"icon": "hub", "value": str(stats["subtopic_count"]), "label": "Subtopics"},
+            {"icon": "bar_chart", "value": str(stats["total_concepts"]), "label": "Total Concepts"},
         ]
     )
 
     st.markdown(
         f"""
-        <div class="ed-section-label" style="margin-top:1.6rem;">Main Topic</div>
+        <div class="ed-section-label" style="margin-top:1.6rem;">{render_icon("flag", "15px")}Main Topic</div>
         <div class="ed-card" style="padding:0.9rem 1.3rem;">
             <span style="font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:1.05rem; color:var(--text);">
                 {stats["main_topic"]}
@@ -167,7 +175,7 @@ def render_concept_map_page() -> None:
         unsafe_allow_html=True,
     )
 
-    render_section_label("Hierarchical Concept Map")
+    render_section_label("Hierarchical Concept Map", icon="account_tree")
     render_mermaid(concept_map["mermaid"])
 
 

@@ -14,7 +14,8 @@ from ui_theme import (
     inject_global_css,
     render_top_navbar,
     render_section_label,
-    render_no_video_notice
+    render_no_video_notice,
+    render_icon,
 )
 from utils.exceptions import (
     EmptyQuestionError,
@@ -25,7 +26,7 @@ from utils.exceptions import (
 
 st.set_page_config(
     page_title="Doubt Clarification",
-    page_icon="💬",
+    page_icon=":material/forum:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -85,20 +86,20 @@ def handle_user_question(question: str) -> None:
         st.session_state.last_retrieved_chunks = retrieved_chunks
 
     except EmptyQuestionError as exc:
-        st.warning(f"⚠️ {str(exc)}")
+        st.warning(str(exc), icon=":material/warning:")
 
     except EmbeddingGenerationError as exc:
-        st.error(f"⚠️ {str(exc)}")
+        st.error(str(exc), icon=":material/error:")
 
     except VectorStoreError as exc:
-        st.error(f"⚠️ {str(exc)}")
+        st.error(str(exc), icon=":material/error:")
 
     except LLMGenerationError as exc:
-        st.error(f"⚠️ {str(exc)}")
+        st.error(str(exc), icon=":material/error:")
 
     except Exception as exc:
         st.error(
-            f"⚠️ An unexpected error occurred: {str(exc)}"
+            f"An unexpected error occurred: {str(exc)}", icon=":material/error:"
         )
 
 
@@ -107,9 +108,10 @@ def render_chat_history() -> None:
     if not st.session_state.chat_history:
 
         st.markdown(
-            """
+            f"""
             <div class="ed-card">
-                <p style="margin:0;">
+                <p style="margin:0; display:flex; align-items:center; gap:0.6rem;">
+                    {render_icon("forum", "20px")}
                     No questions yet — ask your first one below.
                 </p>
             </div>
@@ -141,7 +143,7 @@ def render_chat_history() -> None:
                 <div class="ed-bubble-row user">
                     <div class="ed-bubble user">
                         <span class="ed-bubble-label">
-                            You
+                            {render_icon("person", "13px")}You
                         </span>
                         {current_user}
                     </div>
@@ -150,7 +152,7 @@ def render_chat_history() -> None:
                 <div class="ed-bubble-row assistant">
                     <div class="ed-bubble assistant">
                         <span class="ed-bubble-label">
-                            Tutor
+                            {render_icon("smart_toy", "13px")}Tutor
                         </span>
                         {answer}
                     </div>
@@ -181,13 +183,14 @@ def main():
         )
         return
 
-    if st.button("🗑️ Clear Chat"):
+    if st.button("Clear Chat", icon=":material/delete:"):
 
         st.session_state.chat_history = []
         st.rerun()
 
     render_section_label(
-        f"Chat · {len(st.session_state.chat_history)//2} question(s) asked"
+        f"Chat · {len(st.session_state.chat_history)//2} question(s) asked",
+        icon="forum",
     )
 
     render_chat_history()
@@ -214,7 +217,8 @@ def main():
 
             submitted = st.form_submit_button(
                 "Send",
-                use_container_width=True
+                use_container_width=True,
+                icon=":material/send:",
             )
 
     if submitted:
@@ -222,7 +226,7 @@ def main():
         if not user_question.strip():
 
             st.warning(
-                "⚠️ Please enter a question before submitting."
+                "Please enter a question before submitting.", icon=":material/warning:"
             )
 
         else:

@@ -3,18 +3,6 @@ app.py
 
 Main Streamlit entry point for the AI-Powered Educational Video Learning
 Assistant.
-
-This file now does two jobs:
-1. Defines the "Learn" stage (YouTube ingestion pipeline + summary —
-   kept together on one page, exactly as before) directly in this file.
-2. Acts as the app's router: it registers all six stages with
-   st.navigation(position="hidden") so Streamlit's default sidebar
-   navigation is suppressed, and renders the custom top "Stage Rail"
-   navbar (ui_theme.render_top_navbar) above whichever stage is active.
-
-None of the existing ingestion/summary/notes business logic below has
-been changed — only how it's triggered and displayed, plus the addition
-of the new Concept Map stage (Phase 4) to the router.
 """
 
 import streamlit as st
@@ -34,7 +22,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from summary import generate_summary
 from notes import generate_key_notes
 from session_utils import initialize_session_state
-from ui_theme import inject_global_css, render_top_navbar, render_section_label, render_stat_grid
+from ui_theme import inject_global_css, render_top_navbar, render_section_label, render_stat_grid, render_icon
 from utils.exceptions import (
     InvalidYouTubeURLError,
     TranscriptNotFoundError,
@@ -49,8 +37,8 @@ from utils.exceptions import (
 # Page Configuration (must be called exactly once, here, before anything else)
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Lumen.Learn — Video Learning Assistant",
-    page_icon="🎓",
+    page_title="Intelligent YouTube Learn AI",
+    page_icon=":material/auto_awesome:",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -140,31 +128,31 @@ def process_video(youtube_url: str) -> None:
 
         except InvalidYouTubeURLError as exc:
             status.update(label="Invalid URL", state="error", expanded=True)
-            st.error(f"⚠️ {str(exc)}")
+            st.error(str(exc), icon=":material/error:")
             st.session_state.video_processed = False
         except TranscriptNotFoundError as exc:
             status.update(label="Transcript unavailable", state="error", expanded=True)
-            st.error(f"⚠️ {str(exc)}")
+            st.error(str(exc), icon=":material/error:")
             st.session_state.video_processed = False
         except TranscriptFetchError as exc:
             status.update(label="Transcript fetch failed", state="error", expanded=True)
-            st.error(f"⚠️ {str(exc)}")
+            st.error(str(exc), icon=":material/error:")
             st.session_state.video_processed = False
         except EmbeddingGenerationError as exc:
             status.update(label="Embedding generation failed", state="error", expanded=True)
-            st.error(f"⚠️ {str(exc)}")
+            st.error(str(exc), icon=":material/error:")
             st.session_state.video_processed = False
         except VectorStoreError as exc:
             status.update(label="Database error", state="error", expanded=True)
-            st.error(f"⚠️ {str(exc)}")
+            st.error(str(exc), icon=":material/error:")
             st.session_state.video_processed = False
         except LLMGenerationError as exc:
             status.update(label="AI generation failed", state="error", expanded=True)
-            st.error(f"⚠️ {str(exc)}")
+            st.error(str(exc), icon=":material/error:")
             st.session_state.video_processed = False
         except Exception as exc:  # noqa: BLE001 - final safety net for unexpected errors
             status.update(label="Unexpected error", state="error", expanded=True)
-            st.error(f"⚠️ An unexpected error occurred: {str(exc)}")
+            st.error(f"An unexpected error occurred: {str(exc)}", icon=":material/error:")
             st.session_state.video_processed = False
 
 
@@ -173,7 +161,7 @@ def process_video(youtube_url: str) -> None:
 # ---------------------------------------------------------------------------
 def render_video_input_section() -> None:
     """Render the YouTube URL input and processing trigger."""
-    render_section_label("Process Video")
+    render_section_label("Process Video", icon="link")
 
     col1, col2 = st.columns([4, 1], vertical_alignment="bottom")
     with col1:
@@ -184,11 +172,13 @@ def render_video_input_section() -> None:
             key="youtube_url_input",
         )
     with col2:
-        process_clicked = st.button("Process Video", use_container_width=True)
+        process_clicked = st.button(
+            "Process Video", use_container_width=True, icon=":material/play_arrow:"
+        )
 
     if process_clicked:
         if not youtube_url or not youtube_url.strip():
-            st.warning("⚠️ Please enter a YouTube URL before processing.")
+            st.warning("Please enter a YouTube URL before processing.", icon=":material/warning:")
         else:
             process_video(youtube_url.strip())
 
@@ -197,14 +187,17 @@ def render_transcript_stats() -> None:
     """Render transcript/processing stats once a video has been processed."""
     if not st.session_state.video_processed:
         st.markdown(
-            """
+            f"""
             <div class="ed-card">
-                <p style="margin:0; color: var(--text-dim);">
-                    Paste a YouTube lecture or talk URL above and click
-                    <strong style="color:var(--text);">Process Video</strong> to get started.
-                    Once processed, a summary appears below, and you can move through
-                    Key Notes, Doubt Clarification, MCQ Assessment, Learning Path, and
-                    Concept Map using the rail above.
+                <p style="margin:0; color: var(--text-dim); display:flex; align-items:flex-start; gap:0.6rem;">
+                    {render_icon("info", "20px")}
+                    <span>
+                        Paste a YouTube lecture or talk URL above and click
+                        <strong style="color:var(--text);">Process Video</strong> to get started.
+                        Once processed, a summary appears below, and you can move through
+                        Key Notes, Doubt Clarification, MCQ Assessment, Learning Path, and
+                        Concept Map using the rail above.
+                    </span>
                 </p>
             </div>
             """,
@@ -212,16 +205,16 @@ def render_transcript_stats() -> None:
         )
         return
 
-    render_section_label("Transcript Overview")
+    render_section_label("Transcript Overview", icon="analytics")
 
     db_status = "Connected" if st.session_state.collection_name else "Not Connected"
 
     render_stat_grid(
         [
-            {"icon": "📝", "value": f"{st.session_state.transcript_length:,}", "label": "Transcript Length"},
-            {"icon": "🧩", "value": str(st.session_state.num_chunks), "label": "Chunks Created"},
-            {"icon": "✅", "value": "Yes", "label": "Video Processed"},
-            {"icon": "🗄️", "value": db_status, "label": "Database Status"},
+            {"icon": "description", "value": f"{st.session_state.transcript_length:,}", "label": "Transcript Length"},
+            {"icon": "view_module", "value": str(st.session_state.num_chunks), "label": "Chunks Created"},
+            {"icon": "check_circle", "value": "Yes", "label": "Video Processed"},
+            {"icon": "database", "value": db_status, "label": "Database Status"},
         ]
     )
 
@@ -255,7 +248,7 @@ def render_summary_section() -> None:
     if not st.session_state.video_processed or not st.session_state.summary:
         return
 
-    render_section_label("Summary")
+    render_section_label("Summary", icon="article")
 
     summary = st.session_state.summary
 
@@ -266,12 +259,13 @@ def render_summary_section() -> None:
         pdf_file = create_summary_pdf(summary)
 
         st.download_button(
-            label="📥",
+            label="",
             data=pdf_file,
             file_name="video_summary.pdf",
             mime="application/pdf",
             help="Download Summary PDF",
-            key="summary_download"
+            key="summary_download",
+            icon=":material/download:",
         )
 
     st.markdown(

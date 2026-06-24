@@ -10,7 +10,14 @@ import streamlit as st
 
 from mcq import generate_mcqs
 from session_utils import initialize_session_state
-from ui_theme import render_section_label, render_no_video_notice, render_question_card_header
+from ui_theme import (
+    render_section_label,
+    render_no_video_notice,
+    render_question_card_header,
+    render_difficulty_badge,
+    render_difficulty_group_header,
+    render_icon,
+)
 from utils.exceptions import LLMGenerationError
 from io import BytesIO
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -86,7 +93,7 @@ def create_mcq_pdf(mcqs):
 
     return buffer
 
-render_section_label("MCQ Assessment")
+render_section_label("MCQ Assessment", icon="quiz")
 
 if not st.session_state.video_processed:
     render_no_video_notice("MCQ Assessment")
@@ -99,7 +106,7 @@ else:
     with header_col:
         st.markdown(
             '<p style="color: var(--text-dim); margin-top:0;">'
-            "Exam-style questions generated from this video's transcript."
+            "Exam-style questions generated from this video's."
             "</p>",
             unsafe_allow_html=True,
         )
@@ -112,7 +119,9 @@ else:
 
     with action_col:
         button_label = "Regenerate MCQs" if st.session_state.mcqs else "Generate MCQs"
-        generate_clicked = st.button(button_label, use_container_width=True)
+        generate_clicked = st.button(
+            button_label, use_container_width=True, icon=":material/auto_awesome:"
+        )
     if generate_clicked:
         with st.spinner("Generating MCQs from the transcript..."):
             try:
@@ -122,15 +131,18 @@ else:
                 st.session_state.mcq_submitted = False
                 st.rerun()
             except LLMGenerationError as exc:
-                st.error(f"⚠️ {str(exc)}")
+                st.error(str(exc), icon=":material/error:")
 
     if not st.session_state.mcqs:
         st.markdown(
-            """
+            f"""
             <div class="ed-card">
-                <p style="margin:0; color: var(--text-dim);">
-                    No MCQs generated yet. Click <strong style="color:var(--text);">Generate MCQs</strong>
-                    above to create a question assessment from this video.
+                <p style="margin:0; color: var(--text-dim); display:flex; align-items:flex-start; gap:0.6rem;">
+                    {render_icon("info", "20px")}
+                    <span>
+                        No MCQs generated yet. Click <strong style="color:var(--text);">Generate MCQs</strong>
+                        above to create a question assessment from this video.
+                    </span>
                 </p>
             </div>
             """,
@@ -145,21 +157,20 @@ else:
             )
 
             st.download_button(
-                "📥 Download MCQ PDF",
+                "Download MCQ PDF",
                 data=pdf_file,
                 file_name="mcq_assessment.pdf",
                 mime="application/pdf",
                 use_container_width=True,
-                key="mcq_download"
+                key="mcq_download",
+                icon=":material/download:",
             )
         # --------------------- Quiz mode ---------------------
         with st.form(key="mcq_quiz_form"):
             for i, mcq_item in enumerate(st.session_state.mcqs, start=1):
                 st.markdown('<div class="ed-mcq-card">', unsafe_allow_html=True)
                 render_question_card_header(i, mcq_item["question"])
-                st.caption(
-                    f"Difficulty: {mcq_item['difficulty']}"
-                )
+                render_difficulty_badge(mcq_item["difficulty"])
 
                 option_labels = [f"{k}. {v}" for k, v in mcq_item["options"].items()]
                 option_keys = list(mcq_item["options"].keys())
@@ -179,7 +190,9 @@ else:
 
                 st.markdown("</div>", unsafe_allow_html=True)
 
-            submit_quiz = st.form_submit_button("Submit Quiz", use_container_width=True)
+            submit_quiz = st.form_submit_button(
+                "Submit Quiz", use_container_width=True, icon=":material/send:"
+            )
 
         if submit_quiz:
             st.session_state.mcq_submitted = True
@@ -190,7 +203,7 @@ else:
                 for i, mcq_item in enumerate(st.session_state.mcqs, start=1)
                 if st.session_state.mcq_user_answers.get(str(i)) == mcq_item["correct_answer"]
             )
-            render_section_label(f"Results — {score} / {len(st.session_state.mcqs)}")
+            render_section_label(f"Results — {score} / {len(st.session_state.mcqs)}", icon="emoji_events")
 
             for i, mcq_item in enumerate(st.session_state.mcqs, start=1):
                 user_choice = st.session_state.mcq_user_answers.get(str(i))
@@ -199,9 +212,7 @@ else:
                 st.markdown('<div class="ed-mcq-card">', unsafe_allow_html=True)
                 render_question_card_header(i, mcq_item["question"])
 
-                st.caption(
-                    f"Difficulty: {mcq_item['difficulty']}"
-                )
+                render_difficulty_badge(mcq_item["difficulty"])
 
                 for key, text in mcq_item["options"].items():
                     state_class = ""
@@ -240,15 +251,15 @@ else:
 
         question_number = 1
 
-        for title, mcq_group in [
-            ("🟢 Easy Questions", easy_mcqs),
-            ("🟡 Medium Questions", medium_mcqs),
-            ("🔴 Hard Questions", hard_mcqs),
+        for title, css_class, mcq_group in [
+            ("Easy Questions", "easy", easy_mcqs),
+            ("Medium Questions", "medium", medium_mcqs),
+            ("Hard Questions", "hard", hard_mcqs),
         ]:
 
             if mcq_group:
 
-                st.subheader(title)
+                render_difficulty_group_header(title, css_class)
 
                 for mcq_item in mcq_group:
 

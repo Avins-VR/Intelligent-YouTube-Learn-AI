@@ -4,20 +4,13 @@ pages/notes_page.py
 Key Notes stage. Displays the key notes generated during video
 processing (session_state.notes), with an optional regenerate action
 that reuses the existing notes.generate_key_notes() backend unchanged.
-
-Note: the original content of this page wasn't available when this
-redesign was generated, so this file was rebuilt from scratch against
-the documented session-state contract (session_state.notes is a list
-of strings, populated by notes.generate_key_notes() in app.py). If your
-previous version did anything beyond displaying that list, let me know
-and I'll fold it back in.
 """
 
 import streamlit as st
 
 from notes import generate_key_notes
 from session_utils import initialize_session_state
-from ui_theme import render_section_label, render_no_video_notice
+from ui_theme import render_section_label, render_no_video_notice, render_icon
 from utils.exceptions import LLMGenerationError
 from io import BytesIO
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -60,7 +53,7 @@ def create_notes_pdf(notes):
 
     return buffer
 
-render_section_label("Key Notes")
+render_section_label("Key Notes", icon="sticky_note_2")
 
 if not st.session_state.video_processed:
     render_no_video_notice("Key Notes")
@@ -77,7 +70,9 @@ else:
             unsafe_allow_html=True,
         )
     with col2:
-        regenerate_clicked = st.button("Regenerate", use_container_width=True)
+        regenerate_clicked = st.button(
+            "Regenerate", use_container_width=True, icon=":material/refresh:"
+        )
     with col3:
 
         if st.session_state.notes:
@@ -87,13 +82,14 @@ else:
             )
 
             st.download_button(
-                label="📥",
+                label="",
                 data=pdf_file,
                 file_name="key_notes.pdf",
                 mime="application/pdf",
                 help="Download Notes PDF",
                 use_container_width=True,
-                key="notes_download"
+                key="notes_download",
+                icon=":material/download:",
             )
 
     if regenerate_clicked:
@@ -102,13 +98,14 @@ else:
                 st.session_state.notes = generate_key_notes(st.session_state.current_video_id)
                 st.session_state.notes_generated = True
             except LLMGenerationError as exc:
-                st.error(f"⚠️ {str(exc)}")
+                st.error(str(exc), icon=":material/error:")
 
     if not st.session_state.notes:
         st.markdown(
-            """
+            f"""
             <div class="ed-card">
-                <p style="margin:0; color: var(--text-dim);">
+                <p style="margin:0; color: var(--text-dim); display:flex; align-items:center; gap:0.6rem;">
+                    {render_icon("info", "20px")}
                     No notes available yet for this video.
                 </p>
             </div>
@@ -117,4 +114,7 @@ else:
         )
     else:
         for note in st.session_state.notes:
-            st.markdown(f'<div class="ed-note-card">• {note}</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="ed-note-card">{render_icon("task_alt", "17px")}<span>{note}</span></div>',
+                unsafe_allow_html=True,
+            )

@@ -10,12 +10,12 @@ import streamlit as st
 
 from recommendations import generate_recommendations
 from session_utils import initialize_session_state
-from ui_theme import render_section_label, render_no_video_notice, render_path_node
+from ui_theme import render_section_label, render_no_video_notice, render_path_node, render_icon
 from utils.exceptions import LLMGenerationError
 
 initialize_session_state()
 
-render_section_label("Learning Path")
+render_section_label("Learning Path", icon="route")
 
 if not st.session_state.video_processed:
     render_no_video_notice("Learning Path")
@@ -32,7 +32,9 @@ else:
 
     with action_col:
         button_label = "Regenerate" if st.session_state.recommendations else "Generate Path"
-        generate_clicked = st.button(button_label, use_container_width=True)
+        generate_clicked = st.button(
+            button_label, use_container_width=True, icon=":material/auto_awesome:"
+        )
 
     if generate_clicked:
         with st.spinner("Mapping out a learning path..."):
@@ -42,15 +44,18 @@ else:
                 )
                 st.session_state.recommendations_generated = True
             except LLMGenerationError as exc:
-                st.error(f"⚠️ {str(exc)}")
+                st.error(str(exc), icon=":material/error:")
 
     if not st.session_state.recommendations:
         st.markdown(
-            """
+            f"""
             <div class="ed-card">
-                <p style="margin:0; color: var(--text-dim);">
-                    No learning path generated yet. Click <strong style="color:var(--text);">Generate Path</strong>
-                    above to get 5-10 recommended next topics based on this video.
+                <p style="margin:0; color: var(--text-dim); display:flex; align-items:flex-start; gap:0.6rem;">
+                    {render_icon("info", "20px")}
+                    <span>
+                        No learning path generated yet. Click <strong style="color:var(--text);">Generate Path</strong>
+                        above to get 5-10 recommended next topics based on this video.
+                    </span>
                 </p>
             </div>
             """,
