@@ -127,6 +127,9 @@ The system automatically:
               Transcript Extraction
                           │
                           ▼
+                 Text Preprocessing
+                          │
+                          ▼
                   Text Chunking
                           │
                           ▼
