@@ -24,12 +24,6 @@ from utils.exceptions import (
     LLMGenerationError,
 )
 
-st.set_page_config(
-    page_title="Doubt Clarification",
-    page_icon=":material/forum:",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
 
 def clean_answer(answer: str) -> str:
