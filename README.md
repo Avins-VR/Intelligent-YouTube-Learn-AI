@@ -5,7 +5,7 @@
 🔗 Live Demo: https://intelligent-youtube-learn-ai.streamlit.app
 
 
-> Transform any educational YouTube video into an intelligent learning experience using **Artificial Intelligence, NLP, RAG, LLMs, and Vector Databases**.
+> Transform any educational YouTube video into an intelligent learning experience using **Artificial Intelligence, RAG, LLMs, and Vector Databases**.
 
 ---
 
