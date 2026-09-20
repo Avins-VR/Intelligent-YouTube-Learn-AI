@@ -49,7 +49,7 @@ TOP_K_RESULTS: int = 5
 # ---------------------------------------------------------------------------
 # Groq Configuration
 # ---------------------------------------------------------------------------
-GROQ_MODEL_NAME: str = "llama-3.3-70b-versatile"
+GROQ_MODEL_NAME: str = "openai/gpt-oss-120b"
 
 GROQ_API_URL: str = (
     "https://api.groq.com/openai/v1/chat/completions"
