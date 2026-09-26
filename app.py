@@ -38,7 +38,7 @@ from utils.exceptions import (
 # ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="Intelligent YouTube Learn AI",
-    page_icon=":material/auto_awesome:",
+    page_icon="Assets\\icon.png",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
