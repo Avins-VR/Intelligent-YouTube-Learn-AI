@@ -6,7 +6,7 @@ Assistant.
 """
 
 import streamlit as st
-
+from pathlib import Path
 import config
 from transcript import get_processed_transcript
 from embeddings import (
@@ -36,9 +36,12 @@ from utils.exceptions import (
 # ---------------------------------------------------------------------------
 # Page Configuration (must be called exactly once, here, before anything else)
 # ---------------------------------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent
+LOGO_PATH = BASE_DIR / "assets" / "icon.png"
+
 st.set_page_config(
     page_title="Intelligent YouTube Learn AI",
-    page_icon=":material/auto_awesome:",
+    page_icon=str(LOGO_PATH),
     layout="wide",
     initial_sidebar_state="collapsed",
 )
